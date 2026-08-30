@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect ,useState} from "react";
+import { useEffect, useState } from "react";
 import ProtectedPage from "../../components/ProtectedPage";
 import "./dashboard.css";
 
@@ -39,6 +39,7 @@ const quickPrompts = [
     prompt: "Help me create a study plan for today.",
   },
 ];
+
 const aiModes = [
   {
     id: "general" as AIMode,
@@ -75,20 +76,11 @@ const aiModes = [
 export default function DashboardPage() {
   const [message, setMessage] = useState("");
   const [mode, setMode] = useState("general");
-  const [chatId, setChatId] =
-  useState<string | null>(null);
-  
+  const [chatId, setChatId] = useState<string | null>(null);
   const [chatHistory, setChatHistory] = useState<ChatHistory[]>([]);
-const [loadingHistory, setLoadingHistory] = useState(false);
-
-useEffect(() => {
-  loadChatHistory();
-}, []);
-
-
-
-
-
+  const [loadingHistory, setLoadingHistory] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const [messages, setMessages] = useState<Message[]>([
     {
@@ -98,64 +90,51 @@ useEffect(() => {
     },
   ]);
 
-  const [loading, setLoading] = useState(false);
-  const [sidebarOpen, setSidebarOpen] = useState(false);
   useEffect(() => {
-  loadChatHistory();
-}, []);
+    loadChatHistory();
+  }, []);
 
-async function loadChatHistory() {
-  try {
-    setLoadingHistory(true);
+  async function loadChatHistory() {
+    try {
+      setLoadingHistory(true);
+      const response = await fetch("/api/chats");
 
-    const response = await fetch("/api/chats");
+      if (!response.ok) {
+        return;
+      }
 
-    if (!response.ok) {
-      return;
+      const data = await response.json();
+
+      if (data.success) {
+        setChatHistory(data.chats);
+      }
+    } catch (error) {
+      console.error("Failed to load chat history:", error);
+    } finally {
+      setLoadingHistory(false);
     }
-
-    const data = await response.json();
-
-    if (data.success) {
-      setChatHistory(data.chats);
-    }
-  } catch (error) {
-    console.error(
-      "Failed to load chat history:",
-      error
-    );
-  } finally {
-    setLoadingHistory(false);
   }
-}
 
-async function openChat(id: string) {
-  try {
-    setLoading(true);
+  async function openChat(id: string) {
+    try {
+      setLoading(true);
+      const response = await fetch(`/api/chats/${id}`);
+      const data = await response.json();
 
-    const response = await fetch(
-      `/api/chats/${id}`
-    );
+      if (!data.success) {
+        console.error(data.message);
+        return;
+      }
 
-    const data = await response.json();
-
-    if (!data.success) {
-      console.error(data.message);
-      return;
+      setChatId(data.chat.id);
+      setMessages(data.chat.messages);
+      setSidebarOpen(false);
+    } catch (error) {
+      console.error("Failed to open chat:", error);
+    } finally {
+      setLoading(false);
     }
-
-    setChatId(data.chat.id);
-    setMessages(data.chat.messages);
-    setSidebarOpen(false);
-  } catch (error) {
-    console.error(
-      "Failed to open chat:",
-      error
-    );
-  } finally {
-    setLoading(false);
   }
-}
 
   async function sendMessage(customMessage?: string) {
     const userMessage = (customMessage ?? message).trim();
@@ -179,29 +158,28 @@ async function openChat(id: string) {
         headers: {
           "Content-Type": "application/json",
         },
-
-       body: JSON.stringify({
-        message: userMessage,
-       chatId,
-        mode,
-       }),
+        body: JSON.stringify({
+          message: userMessage,
+          chatId,
+          mode,
+        }),
       });
 
       const data = await response.json();
 
       if (data.success) {
-  if (data.chatId) {
-    setChatId(data.chatId);
-  }
+        if (data.chatId) {
+          setChatId(data.chatId);
+        }
 
-  setMessages((previous) => [
-    ...previous,
-    {
-      role: "assistant",
-      content: data.reply,
-    },
-  ]);
-} else {
+        setMessages((previous) => [
+          ...previous,
+          {
+            role: "assistant",
+            content: data.reply,
+          },
+        ]);
+      } else {
         setMessages((previous) => [
           ...previous,
           {
@@ -212,7 +190,6 @@ async function openChat(id: string) {
       }
     } catch (error) {
       console.error("Chat error:", error);
-
       setMessages((previous) => [
         ...previous,
         {
@@ -226,16 +203,15 @@ async function openChat(id: string) {
   }
 
   function clearChat() {
-  setChatId(null);
-
-  setMessages([
-    {
-      role: "assistant",
-      content:
-        "Hello! I'm Jarvius. I'm ready to help you. What would you like to work on today?",
-    },
-  ]);
-}
+    setChatId(null);
+    setMessages([
+      {
+        role: "assistant",
+        content:
+          "Hello! I'm Jarvius. I'm ready to help you. What would you like to work on today?",
+      },
+    ]);
+  }
 
   function handleNewChat() {
     clearChat();
@@ -254,26 +230,19 @@ async function openChat(id: string) {
         )}
 
         {/* SIDEBAR */}
-        <aside
-          className={`sidebar ${sidebarOpen ? "sidebar-open" : ""}`}
-        >
+        <aside className={`sidebar ${sidebarOpen ? "sidebar-open" : ""}`}>
           <div className="sidebar-logo">
             <div className="logo-orb">✦</div>
             <span>Jarvius</span>
             <span className="logo-badge">AI</span>
           </div>
 
-          <button
-            className="new-chat-btn"
-            onClick={handleNewChat}
-          >
+          <button className="new-chat-btn" onClick={handleNewChat}>
             <span>＋</span>
             New Chat
           </button>
 
-          <div className="sidebar-label">
-            WORKSPACE
-          </div>
+          <div className="sidebar-label">WORKSPACE</div>
 
           <nav className="sidebar-nav">
             <a className="active" href="/dashboard">
@@ -302,49 +271,38 @@ async function openChat(id: string) {
             </a>
           </nav>
 
-          <div className="sidebar-label">
-  RECENT
-</div>
+          <div className="sidebar-label">RECENT</div>
 
-<div className="recent-chats">
-  {loadingHistory ? (
-    <div className="recent-loading">
-      Loading chats...
-    </div>
-  ) : chatHistory.length === 0 ? (
-    <div className="recent-empty">
-      No conversations yet
-    </div>
-  ) : (
-    chatHistory.map((chat) => (
-      <button
-        key={chat.id}
-        className="recent-chat"
-        onClick={() => openChat(chat.id)}
-      >
-        <div className="recent-icon">💬</div>
+          <div className="recent-chats">
+            {loadingHistory ? (
+              <div className="recent-loading">Loading chats...</div>
+            ) : chatHistory.length === 0 ? (
+              <div className="recent-empty">No conversations yet</div>
+            ) : (
+              chatHistory.map((chat) => (
+                <button
+                  key={chat.id}
+                  className="recent-chat"
+                  onClick={() => openChat(chat.id)}
+                >
+                  <div className="recent-icon">💬</div>
 
-        <div>
-          <strong>{chat.title}</strong>
-
-          <span>
-            {new Date(chat.updatedAt).toLocaleDateString()}
-          </span>
-        </div>
-      </button>
-    ))
-  )}
-</div>
+                  <div>
+                    <strong>{chat.title}</strong>
+                    <span>
+                      {new Date(chat.updatedAt).toLocaleDateString()}
+                    </span>
+                  </div>
+                </button>
+              ))
+            )}
+          </div>
 
           <div className="sidebar-bottom">
             <div className="sidebar-ai-status">
-              <div className="status-avatar">
-                ✦
-              </div>
-
+              <div className="status-avatar">✦</div>
               <div>
                 <strong>Jarvius AI</strong>
-
                 <span>
                   <i></i>
                   Online
@@ -370,7 +328,6 @@ async function openChat(id: string) {
                 <div className="breadcrumb">
                   Workspace / <span>Dashboard</span>
                 </div>
-
                 <h1>AI Workspace</h1>
               </div>
             </div>
@@ -381,9 +338,7 @@ async function openChat(id: string) {
                 Jarvius Online
               </div>
 
-              <div className="profile-avatar">
-                I
-              </div>
+              <div className="profile-avatar">I</div>
             </div>
           </header>
 
@@ -402,8 +357,8 @@ async function openChat(id: string) {
               </h2>
 
               <p>
-                Jarvius is ready to help you code, learn,
-                write, analyze and solve problems.
+                Jarvius is ready to help you code, learn, write, analyze and
+                solve problems.
               </p>
 
               <div className="welcome-tags">
@@ -416,102 +371,41 @@ async function openChat(id: string) {
             <div className="robot-container">
               <div className="robot-ring ring-one"></div>
               <div className="robot-ring ring-two"></div>
-
-              <div className="robot-core">
-                ✦
-              </div>
-
+              <div className="robot-core">✦</div>
               <div className="floating-dot dot-one"></div>
               <div className="floating-dot dot-two"></div>
               <div className="floating-dot dot-three"></div>
             </div>
           </section>
 
-
-
-
-
-<div className="mode-selector">
-  <button
-    className={mode === "general" ? "mode-active" : ""}
-    onClick={() => setMode("general")}
-  >
-    💬 General
-  </button>
-
-  <button
-    className={mode === "coding" ? "mode-active" : ""}
-    onClick={() => setMode("coding")}
-  >
-    💻 Coding
-  </button>
-
-  <button
-    className={mode === "study" ? "mode-active" : ""}
-    onClick={() => setMode("study")}
-  >
-    📚 Study
-  </button>
-
-  <button
-    className={mode === "writing" ? "mode-active" : ""}
-    onClick={() => setMode("writing")}
-  >
-    📝 Writing
-  </button>
-
-  <button
-    className={mode === "research" ? "mode-active" : ""}
-    onClick={() => setMode("research")}
-  >
-    🔎 Research
-  </button>
-
-  <button
-    className={mode === "math" ? "mode-active" : ""}
-    onClick={() => setMode("math")}
-  >
-    🧮 Math
-  </button>
-</div>
-
-
-
-
-
-
           {/* CHAT */}
           <section className="chat-card">
             <div className="chat-header">
               <div className="chat-title">
-                <div className="chat-avatar">
-                  ✦
-                </div>
+                <div className="chat-avatar">✦</div>
 
                 <div>
                   <h3>Jarvius</h3>
-
-                  <span>
-                    AI Assistant · Ready to help
-                  </span>
+                  <span>AI Assistant · Ready to help</span>
                 </div>
               </div>
-                <div className="mode-selector">
-  {aiModes.map((aiMode) => (
-    <button
-      key={aiMode.id}
-      className={`mode-btn ${
-        mode === aiMode.id ? "active" : ""
-      }`}
-      onClick={() => setMode(aiMode.id)}
-      disabled={loading}
-      title={aiMode.description}
-    >
-      <span>{aiMode.icon}</span>
-      {aiMode.name}
-    </button>
-  ))}
-</div>
+
+              <div className="mode-selector">
+                {aiModes.map((aiMode) => (
+                  <button
+                    key={aiMode.id}
+                    className={`mode-btn ${
+                      mode === aiMode.id ? "active" : ""
+                    }`}
+                    onClick={() => setMode(aiMode.id)}
+                    disabled={loading}
+                    title={aiMode.description}
+                  >
+                    <span>{aiMode.icon}</span>
+                    {aiMode.name}
+                  </button>
+                ))}
+              </div>
 
               <button
                 className="clear-btn"
@@ -528,9 +422,7 @@ async function openChat(id: string) {
                 <div
                   key={index}
                   className={`message ${
-                    msg.role === "user"
-                      ? "user-message"
-                      : "assistant-message"
+                    msg.role === "user" ? "user-message" : "assistant-message"
                   }`}
                 >
                   <div className="message-avatar">
@@ -538,12 +430,7 @@ async function openChat(id: string) {
                   </div>
 
                   <div className="message-content">
-                    <strong>
-                      {msg.role === "user"
-                        ? "You"
-                        : "Jarvius"}
-                    </strong>
-
+                    <strong>{msg.role === "user" ? "You" : "Jarvius"}</strong>
                     <p>{msg.content}</p>
                   </div>
                 </div>
@@ -551,13 +438,9 @@ async function openChat(id: string) {
 
               {loading && (
                 <div className="message assistant-message">
-                  <div className="message-avatar">
-                    ✦
-                  </div>
-
+                  <div className="message-avatar">✦</div>
                   <div className="message-content">
                     <strong>Jarvius</strong>
-
                     <div className="typing">
                       <span></span>
                       <span></span>
@@ -570,17 +453,13 @@ async function openChat(id: string) {
 
             {/* INPUT */}
             <div className="chat-input-container">
-              <button className="attach-btn">
-                ＋
-              </button>
+              <button className="attach-btn">＋</button>
 
               <input
                 type="text"
                 placeholder="Ask Jarvius anything..."
                 value={message}
-                onChange={(e) =>
-                  setMessage(e.target.value)
-                }
+                onChange={(e) => setMessage(e.target.value)}
                 onKeyDown={(e) => {
                   if (e.key === "Enter") {
                     sendMessage();
@@ -588,10 +467,7 @@ async function openChat(id: string) {
                 }}
               />
 
-              <button
-                className="voice-btn"
-                title="Voice input"
-              >
+              <button className="voice-btn" title="Voice input">
                 🎙
               </button>
 
@@ -605,8 +481,7 @@ async function openChat(id: string) {
             </div>
 
             <div className="chat-disclaimer">
-              Jarvius can make mistakes. Check important
-              information.
+              Jarvius can make mistakes. Check important information.
             </div>
           </section>
 
@@ -624,24 +499,17 @@ async function openChat(id: string) {
                 <button
                   key={action.title}
                   className="action-card"
-                  onClick={() =>
-                    sendMessage(action.prompt)
-                  }
+                  onClick={() => sendMessage(action.prompt)}
                   disabled={loading}
                 >
-                  <div className="action-icon">
-                    {action.icon}
-                  </div>
+                  <div className="action-icon">{action.icon}</div>
 
                   <div className="action-text">
                     <strong>{action.title}</strong>
-
                     <p>{action.prompt}</p>
                   </div>
 
-                  <span className="action-arrow">
-                    →
-                  </span>
+                  <span className="action-arrow">→</span>
                 </button>
               ))}
             </div>
