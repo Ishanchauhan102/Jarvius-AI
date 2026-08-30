@@ -1,15 +1,14 @@
 "use client";
 
-import Navbar from "../components/Navbar";
-import Hero from "../components/Hero";
-import Features from "../components/Features";
-import Download from "../components/Download";
-import Contact from "../components/Contact";
-import Footer from "../components/Footer";
-
 import { useEffect, useState } from "react";
 
-export default function Home() {
+type ProtectedPageProps = {
+  children: React.ReactNode;
+};
+
+export default function ProtectedPage({
+  children,
+}: ProtectedPageProps) {
   const [checkingAuth, setCheckingAuth] = useState(true);
 
   useEffect(() => {
@@ -43,19 +42,5 @@ export default function Home() {
     return <p>Checking authentication...</p>;
   }
 
-  return (
-    <main>
-      <Navbar />
-
-      <Hero />
-
-      <Features />
-
-      <Download />
-
-      <Contact />
-
-      <Footer />
-    </main>
-  );
+  return <>{children}</>;
 }
