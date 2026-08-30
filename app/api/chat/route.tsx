@@ -166,13 +166,13 @@ export async function POST(request: Request) {
       parts: [{ text: m.content }],
     }));
 
-    const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash",
-      contents: geminiContents,
-      config: {
-        systemInstruction: systemPrompt,
-      },
-    });
+   const response = await ai.models.generateContent({
+  model: "gemini-3.6-flash",
+  contents: geminiContents,
+  config: {
+    systemInstruction: systemPrompt,
+  },
+});
 
     const reply = response.text?.trim() || "No response received from Jarvius.";
 
