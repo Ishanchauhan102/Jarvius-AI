@@ -85,23 +85,7 @@ useEffect(() => {
   loadChatHistory();
 }, []);
 
-async function loadChatHistory() {
-  try {
-    setLoadingHistory(true);
 
-    const response = await fetch("/api/chats");
-
-    const data = await response.json();
-
-    if (data.success) {
-      setChatHistory(data.chats);
-    }
-  } catch (error) {
-    console.error("Failed to load chat history:", error);
-  } finally {
-    setLoadingHistory(false);
-  }
-}
 
 
 
